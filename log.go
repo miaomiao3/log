@@ -3,7 +3,6 @@ package log
 import (
 	"fmt"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -24,8 +23,6 @@ const (
 //default channel buf length is 1k
 const defaultAsyncMsgLen = 1024
 
-var levelPrefix = [LevelDebug + 1]string{"[M] ", "[A] ", "[C] ", "[E] ", "[W] ", "[N] ", "[I] ", "[D] "}
-
 type LoggerConfig struct {
 	Level       uint8
 	CallDepth   uint8
@@ -34,13 +31,14 @@ type LoggerConfig struct {
 	MsgChanLen  uint32
 }
 
-func NewLogger(cfg *LoggerConfig, s *Store) *Logger {
+func NewLogger(cfg *LoggerConfig, store Store, layout Layout) *Logger {
 	l := new(Logger)
 	l.level = cfg.Level
 	l.callDepth = cfg.CallDepth
 	l.msgChanLen = cfg.MsgChanLen
 	l.signalChan = make(chan string, 1)
-	l.Store = *s
+	l.Store = store
+	l.Layout = layout
 	return l
 }
 
@@ -66,6 +64,7 @@ type Logger struct {
 	msgChan    chan string // data channel
 	signalChan chan string // control channel
 	wg         sync.WaitGroup
+	Layout     Layout
 	Store      Store
 }
 
@@ -93,7 +92,7 @@ func (l *Logger) store(s *string) (err error) {
 		return fmt.Errorf("Store empty")
 	}
 
-	if !l.init{
+	if !l.init {
 		l.Store.Init()
 	}
 
@@ -102,13 +101,15 @@ func (l *Logger) store(s *string) (err error) {
 }
 
 func (l *Logger) writeMsg(level uint8, format interface{}, v ...interface{}) (err error) {
-	msg := ""
+	out := new(string)
 	encoded := l.formatLog(format, v...)
-
-	if level < 8 {
-		msg = levelPrefix[level] + *encoded
+	if l.Layout == nil {
+		err = fmt.Errorf("lauout nil")
+		l.checkErr(err)
+		return
 	}
 
+	t := time.Now()
 	if l.enableCall {
 		//get file and line number
 		_, file, line, ok := runtime.Caller(int(l.callDepth))
@@ -116,17 +117,29 @@ func (l *Logger) writeMsg(level uint8, format interface{}, v ...interface{}) (er
 			file = "???"
 			line = 0
 		}
-
-		msg = "[" + file + ":" + strconv.Itoa(line) + "] " + msg
+		out = l.Layout.Layout(&LayoutInfo{
+			Level:level,
+			Msg:encoded,
+			Time:&t,
+			EnableCall:true,
+			FileName: &file,
+			LineNumber:line,
+		})
+	} else {
+		out = l.Layout.Layout(&LayoutInfo{
+			Level:level,
+			Msg:encoded,
+			Time:&t,
+			EnableCall:false,
+		})
 	}
 
-	msg = time.Now().Format("2006/01/02 15:04:05.00 ") + msg + "\n"
 	if l.isAsync {
-		l.msgChan <- msg
+		l.msgChan <- *out
 	} else {
-		err = l.store(&msg)
+		err = l.store(out)
 		if err != nil {
-			fmt.Println("logger error:", err)
+
 		}
 		return
 	}
@@ -173,6 +186,14 @@ func (l *Logger) GetCallDepth() uint8 {
 
 func (l *Logger) EnableCall(b bool) {
 	l.enableCall = b
+}
+
+// if logger get error, dump error msg to stdout
+func (l *Logger) checkErr(err error) {
+	errMsg := err.Error()
+	if len(err.Error()) > 0 {
+		fmt.Println("[***** Logger Error *****]:", errMsg)
+	}
 }
 
 // run for async channel msg
@@ -274,7 +295,7 @@ func (l *Logger) Close() {
 	close(l.signalChan)
 }
 
-var DefaultLogger = NewLogger(defaultConfig, &defaultStore)
+var DefaultLogger = NewLogger(defaultConfig, defaultStore, &BaseLayout{})
 var defaultConfig = &LoggerConfig{Level: LevelDebug}
 var defaultStore = DefaultConsoleStore()
 
@@ -286,9 +307,6 @@ func SetFuncCall(b bool) {
 	DefaultLogger.EnableCall(b)
 }
 
-func EnableAsync() {
-	DefaultLogger.Async(defaultAsyncMsgLen)
-}
 
 func SetLogFuncCall(b bool) {
 	DefaultLogger.EnableCall(b)
@@ -297,6 +315,10 @@ func SetLogFuncCall(b bool) {
 
 func SetCallDepth(d uint8) {
 	DefaultLogger.callDepth = d
+}
+
+func EnableAsync() {
+	DefaultLogger.Async(defaultAsyncMsgLen)
 }
 
 func Emergency(f interface{}, v ...interface{}) {

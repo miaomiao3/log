@@ -57,7 +57,7 @@ func main() {
 		IsAsync:     false,
 	}
 
-	logger := log.NewLogger(loggerCfg, &fileStore)
+	logger := log.NewLogger(loggerCfg, fileStore, &log.BaseLayout{})
 	for i := 0; i < 50; i++ {
 		logger.Debug("testing %v", i)
 	}
