@@ -20,13 +20,14 @@ type FileConfig struct {
 }
 
 type FileStore struct {
-	sync.RWMutex   // write log order by order and  atomic incr maxLinesCurLines
+	sync.RWMutex   // write log order by order
 	Filename       string
 	fileNamePrefix string   // file name prefix, if change file output, only add date information
 	fp             *os.File // The opened file
 	DailyRotate    bool     // change file output everyday
 	MaxDays        uint16   // if log files exist more than max days, delete log files
 	MaxSize        uint32   // unit: byte
+	nowSize        uint32   // unit: byte
 	Perm           string
 }
 
@@ -41,6 +42,7 @@ func NewFileStore(cfg *FileConfig) (Store, error) {
 	f.Filename = cfg.FileName
 	f.DailyRotate = cfg.DailyRotate
 	f.MaxDays = cfg.MaxDays
+	f.MaxSize = cfg.MaxSize
 	f.Perm = "0660" //default is 0660
 	f.fileNamePrefix = strings.TrimSuffix(f.Filename, filepath.Ext(f.Filename))
 	return f, nil
@@ -65,6 +67,11 @@ func (w *FileStore) startLogger() (err error) {
 		// Make sure file perm is user set perm cause of `os.OpenFile` will obey umask
 		os.Chmod(w.Filename, os.FileMode(perm))
 	}
+
+	fInfo, _ := fp.Stat()
+
+	// record size now
+	w.nowSize = uint32(fInfo.Size())
 
 	if err != nil {
 		return err
@@ -100,6 +107,9 @@ func (w *FileStore) initLogFile() (err error) {
 // WriteMsg write logger message into file.
 func (w *FileStore) WriteMsg(s *string) error {
 	w.Lock()
+	w.nowSize += uint32(len(*s))
+	fmt.Fprintf(os.Stderr, "nowSize %d, maxsize: %d\n", w.nowSize, w.MaxSize)
+	w.checkFileSizeRotate()
 	_, err := w.fp.Write([]byte(*s))
 	w.Unlock()
 	return err
@@ -121,20 +131,17 @@ func (w *FileStore) run() {
 				}
 				w.Unlock()
 			}
-			w.checkFileSizeRotate()
+
 		}
 	}
 
 }
 
 func (w *FileStore) checkFileSizeRotate() {
-	fd := w.fp
-	fInfo, _ := fd.Stat()
-
 	// check size
-	if fInfo.Size() > int64(w.MaxSize) {
+	if w.nowSize > w.MaxSize {
 		if err := w.rename(); err != nil {
-			fmt.Fprintf(os.Stderr, "fileLogger(%q): %s\n", w.Filename, err)
+			fmt.Fprintf(os.Stderr, "fileName( %s ) err: %s\n", w.Filename, err)
 		}
 	}
 }
@@ -144,6 +151,7 @@ func (w *FileStore) rename() error {
 	// Find the next available number
 	num := 1
 	newFileName := ""
+	isNewFileNameAvailable := false
 	logTime := time.Now()
 	_, err := os.Lstat(w.Filename)
 	if err != nil {
@@ -152,16 +160,22 @@ func (w *FileStore) rename() error {
 	}
 
 	// according to maxLines setting, generate a new file name
-	newFileName = w.fileNamePrefix + fmt.Sprintf("_%s%s", logTime.Format("2006-01-02"), ".log")
-	_, err = os.Lstat(newFileName)
-	for ; err == nil && num <= 999; num++ {
-		// if err accured, it means that newFileName is available
+
+	for ; err == nil && num <= 9999; num++ {
+
 		newFileName = w.fileNamePrefix + fmt.Sprintf("_%s_%03d%s", logTime.Format("2006-01-02"), num, ".log")
+
+		// if err appeared, it means that newFileName is available
 		_, err = os.Lstat(newFileName)
-		if err == nil {
-			return fmt.Errorf("cannot find free log number to rename %s", w.Filename)
+		if err != nil {
+			isNewFileNameAvailable = true
+			break
 		}
 
+	}
+
+	if !isNewFileNameAvailable {
+		return fmt.Errorf("cannot find free log number to rename %s", w.Filename)
 	}
 
 	// close file before rename
@@ -225,11 +239,3 @@ func (w *FileStore) Destroy() {
 func (w *FileStore) Flush() {
 	w.fp.Sync()
 }
-
-//
-//type Store interface {
-//	Init() error
-//	WriteMsg(s *string) error
-//	Flush()
-//	Destroy()
-//}

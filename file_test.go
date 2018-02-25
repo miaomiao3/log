@@ -11,7 +11,7 @@ func TestFileStore(t *testing.T) {
 		fileCfg := &FileConfig{
 			FileName:    "test.log",
 			MaxDays:     3,    //delete the old file after 7 days
-			MaxSize:     100,  //rename the old file when its lines > Maxlines
+			MaxSize:     100,  //rename the old file when its bytes > MaxSize
 			DailyRotate: true, //rename the old file when date changes and start a new log file
 		}
 		fileStore, err := NewFileStore(fileCfg)
