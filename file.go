@@ -108,7 +108,6 @@ func (w *FileStore) initLogFile() (err error) {
 func (w *FileStore) WriteMsg(s *string) error {
 	w.Lock()
 	w.nowSize += uint32(len(*s))
-	fmt.Fprintf(os.Stderr, "nowSize %d, maxsize: %d\n", w.nowSize, w.MaxSize)
 	w.checkFileSizeRotate()
 	_, err := w.fp.Write([]byte(*s))
 	w.Unlock()

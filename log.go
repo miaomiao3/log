@@ -43,14 +43,8 @@ func NewLogger(cfg *LoggerConfig, store Store, layout Layout) *Logger {
 }
 
 // set default logger
-func SetDefaultLogger(cfg *LoggerConfig, s *Store) {
-	l := new(Logger)
-	l.level = cfg.Level
-	l.callDepth = cfg.CallDepth
-	l.msgChanLen = defaultAsyncMsgLen
-	l.signalChan = make(chan string, 1)
-	l.Store = *s
-	DefaultLogger = l
+func SetDefaultLogger(logger *Logger) {
+	DefaultLogger = logger
 }
 
 type Logger struct {
@@ -118,19 +112,19 @@ func (l *Logger) writeMsg(level uint8, format interface{}, v ...interface{}) (er
 			line = 0
 		}
 		out = l.Layout.Layout(&LayoutInfo{
-			Level:level,
-			Msg:encoded,
-			Time:&t,
-			EnableCall:true,
-			FileName: &file,
-			LineNumber:line,
+			Level:      level,
+			Msg:        encoded,
+			Time:       &t,
+			EnableCall: true,
+			FileName:   &file,
+			LineNumber: line,
 		})
 	} else {
 		out = l.Layout.Layout(&LayoutInfo{
-			Level:level,
-			Msg:encoded,
-			Time:&t,
-			EnableCall:false,
+			Level:      level,
+			Msg:        encoded,
+			Time:       &t,
+			EnableCall: false,
 		})
 	}
 
@@ -306,7 +300,6 @@ func SetLevel(l uint8) {
 func SetFuncCall(b bool) {
 	DefaultLogger.EnableCall(b)
 }
-
 
 func SetLogFuncCall(b bool) {
 	DefaultLogger.EnableCall(b)
