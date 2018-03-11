@@ -297,17 +297,10 @@ func SetLevel(l uint8) {
 	DefaultLogger.SetLevel(l)
 }
 
-func SetFuncCall(b bool) {
-	DefaultLogger.EnableCall(b)
-}
 
 func SetLogFuncCall(b bool) {
 	DefaultLogger.EnableCall(b)
-	DefaultLogger.SetCallDepth(4)
-}
-
-func SetCallDepth(d uint8) {
-	DefaultLogger.callDepth = d
+	DefaultLogger.SetCallDepth(3)
 }
 
 func EnableAsync() {
