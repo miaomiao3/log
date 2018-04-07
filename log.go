@@ -34,6 +34,7 @@ type LoggerConfig struct {
 func NewLogger(cfg *LoggerConfig, store Store, layout Layout) *Logger {
 	l := new(Logger)
 	l.level = cfg.Level
+	l.enableCall = cfg.EnableDepth
 	l.callDepth = cfg.CallDepth
 	l.msgChanLen = cfg.MsgChanLen
 	l.signalChan = make(chan string, 1)
@@ -44,7 +45,7 @@ func NewLogger(cfg *LoggerConfig, store Store, layout Layout) *Logger {
 
 // set default logger
 func SetDefaultLogger(logger *Logger) {
-	DefaultLogger = logger
+	defaultLogger = logger
 }
 
 type Logger struct {
@@ -289,56 +290,56 @@ func (l *Logger) Close() {
 	close(l.signalChan)
 }
 
-var DefaultLogger = NewLogger(defaultConfig, defaultStore, &BaseLayout{})
+var defaultLogger = NewLogger(defaultConfig, defaultStore, &BaseLayout{})
 var defaultConfig = &LoggerConfig{Level: LevelDebug}
-var defaultStore = DefaultConsoleStore()
+var defaultStore = GetDefaultConsoleStore()
 
 func SetLevel(l uint8) {
-	DefaultLogger.SetLevel(l)
+	defaultLogger.SetLevel(l)
 }
 
 
 func SetLogFuncCall(b bool) {
-	DefaultLogger.EnableCall(b)
-	DefaultLogger.SetCallDepth(3)
+	defaultLogger.EnableCall(b)
+	defaultLogger.SetCallDepth(3)
 }
 
 func EnableAsync() {
-	DefaultLogger.Async(defaultAsyncMsgLen)
+	defaultLogger.Async(defaultAsyncMsgLen)
 }
 
 func Emergency(f interface{}, v ...interface{}) {
-	DefaultLogger.Emergency(f, v...)
+	defaultLogger.Emergency(f, v...)
 }
 
 func Alert(f interface{}, v ...interface{}) {
-	DefaultLogger.Alert(f, v...)
+	defaultLogger.Alert(f, v...)
 }
 
 func Critical(f interface{}, v ...interface{}) {
-	DefaultLogger.Critical(f, v...)
+	defaultLogger.Critical(f, v...)
 }
 
 func Error(f interface{}, v ...interface{}) {
-	DefaultLogger.Error(f, v...)
+	defaultLogger.Error(f, v...)
 }
 
 func Warn(f interface{}, v ...interface{}) {
-	DefaultLogger.Warn(f, v...)
+	defaultLogger.Warn(f, v...)
 }
 
 func Notice(f interface{}, v ...interface{}) {
-	DefaultLogger.Notice(f, v...)
+	defaultLogger.Notice(f, v...)
 }
 
 func Info(f interface{}, v ...interface{}) {
-	DefaultLogger.Info(f, v...)
+	defaultLogger.Info(f, v...)
 }
 
 func Debug(f interface{}, v ...interface{}) {
-	DefaultLogger.Debug(f, v...)
+	defaultLogger.Debug(f, v...)
 }
 
 func Flush() {
-	DefaultLogger.Flush()
+	defaultLogger.Flush()
 }

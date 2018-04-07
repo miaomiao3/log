@@ -12,7 +12,7 @@ type ConsoleStore struct {
 	writer     io.Writer
 }
 
-func DefaultConsoleStore() Store {
+func GetDefaultConsoleStore() Store {
 	console := &ConsoleStore{
 		writer:     os.Stdout,
 	}
