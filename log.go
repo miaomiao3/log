@@ -88,6 +88,7 @@ func (l *Logger) store(s *string) (err error) {
 	}
 
 	if !l.init {
+		l.init = true
 		l.Store.Init()
 	}
 
@@ -297,7 +298,6 @@ var defaultStore = GetDefaultConsoleStore()
 func SetLevel(l uint8) {
 	defaultLogger.SetLevel(l)
 }
-
 
 func SetLogFuncCall(b bool) {
 	defaultLogger.EnableCall(b)

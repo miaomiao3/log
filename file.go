@@ -25,9 +25,10 @@ type FileStore struct {
 	fileNamePrefix string   // file name prefix, if change file output, only add date information
 	fp             *os.File // The opened file
 	DailyRotate    bool     // change file output everyday
-	MaxDays        uint16   // if log files exist more than max days, delete log files
-	MaxSize        uint32   // unit: byte
-	nowSize        uint32   // unit: byte
+	isRotateRun    bool
+	MaxDays        uint16 // if log files exist more than max days, delete log files
+	MaxSize        uint32 // unit: byte
+	nowSize        uint32 // unit: byte
 	Perm           string
 }
 
@@ -55,8 +56,6 @@ func (w *FileStore) Init() error {
 
 // start file logger. create log file and set to locker-inside file writer.
 func (w *FileStore) startLogger() (err error) {
-	//file, err := w.createLogFile()
-
 	perm, err := strconv.ParseInt(w.Perm, 8, 64)
 	if err != nil {
 		return err
@@ -94,7 +93,8 @@ func (w *FileStore) initLogFile() (err error) {
 	}
 
 	//if need a new log file daily
-	if w.DailyRotate {
+	if w.DailyRotate && !w.isRotateRun {
+		w.isRotateRun = true
 		go w.run() // check is need rename timer task
 	}
 
@@ -115,21 +115,21 @@ func (w *FileStore) WriteMsg(s *string) error {
 }
 
 func (w *FileStore) run() {
-	timer := time.NewTimer(time.Minute)
+
+	timer := time.NewTimer(time.Second)
 	for {
 		select {
 
 		case <-timer.C:
-			timer.Reset(time.Minute)
-			if hour, _, _ := time.Now().Clock(); hour == 0 {
+			if hour, min, sec := time.Now().Clock(); hour == 0 && min == 0 && sec == 0 {
 				w.Lock()
 				if w.DailyRotate {
 					if err := w.rename(); err != nil {
-						fmt.Fprintf(os.Stderr, "fileLogger(%q): %s\n", w.Filename, err)
 					}
 				}
 				w.Unlock()
 			}
+			timer.Reset(time.Second)
 
 		}
 	}
@@ -167,6 +167,7 @@ func (w *FileStore) rename() error {
 		// if err appeared, it means that newFileName is available
 		_, err = os.Lstat(newFileName)
 		if err != nil {
+			fmt.Fprintf(os.Stdout, "newFileName is avalible: %s\n", newFileName)
 			isNewFileNameAvailable = true
 			break
 		}
