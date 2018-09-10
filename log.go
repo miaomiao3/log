@@ -113,12 +113,13 @@ func (l *Logger) writeMsg(level uint8, format interface{}, v ...interface{}) (er
 			file = "???"
 			line = 0
 		}
+		fileStrs := strings.Split(file, "/")
 		out = l.Layout.Layout(&LayoutInfo{
 			Level:      level,
 			Msg:        encoded,
 			Time:       &t,
 			EnableCall: true,
-			FileName:   &file,
+			FileName:   &fileStrs[len(fileStrs)-1],
 			LineNumber: line,
 		})
 	} else {
