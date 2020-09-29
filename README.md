@@ -1,6 +1,6 @@
 ## Log
 
-Easy and userful in golang
+Easy logger
 
 
 
@@ -61,20 +61,6 @@ func main() {
 	}
 
 	logger := log.NewLogger(loggerCfg, fileStore, &log.BaseLayout{})
-	for i := 0; i < 10; i++ {
-		logger.Debug("testing %v", i)
-	}
-
-	// kafka store
-	kafkaConfig := sarama.NewConfig()
-	kafkaConfig.Producer.Return.Successes = true
-
-	kafkaStore, err := log.NewKafkaStore([]string{"localhost:9092"}, "test", kafkaConfig)
-	if err != nil {
-		panic(err)
-	}
-
-	logger = log.NewLogger(loggerCfg, kafkaStore, &log.BaseLayout{})
 	for i := 0; i < 10; i++ {
 		logger.Debug("testing %v", i)
 	}

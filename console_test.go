@@ -5,7 +5,7 @@ import (
 )
 
 func TestConsole(t *testing.T) {
-	store:=DefaultConsoleStore()
+	store:=GetDefaultConsoleStore()
 	store.Init()
 	msg := "123"
 	store.WriteMsg(&msg)
